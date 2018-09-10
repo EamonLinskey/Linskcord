@@ -1,0 +1,137 @@
+<!doctype html>
+
+<html lang="en">
+	<head>
+	  	<meta charset="utf-8">
+		<title>Linsey Chat</title>
+	  	<link rel="stylesheet" href="">
+	</head>
+	<body>
+		<script src="../static/scripts/handlebars-v4.0.12.js"></script>
+		<script src="../static/scripts/messagebox.js"></script>
+		<script src="https://cdn.socket.io/socket.io-1.0.0.js"></script>
+		<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+		<link rel="stylesheet" type="text/css" href="../static/styles/stylesheet.css">
+
+		<script id="name-script" type="text/x-handelbars-template">
+			{% raw -%}
+				<div> Hello {{ name }} </div>
+			{%- endraw %}
+		</script>
+
+		<script id="channels-script" type="text/x-handelbars-template">
+			{% raw -%}
+				{{#each channels}}
+					<div class="channel"> {{@key}}</div>
+				{{/each}}
+			{%- endraw %}
+		</script>
+
+		<script>
+
+		document.addEventListener('DOMContentLoaded', () => {
+		    // Connect to websocket
+		    var socket = io.connect(location.protocol + '//' + document.domain + ':' + location.port);
+		    // When connected, configure buttons
+		    socket.on('connect', () => {
+		        // Each button should emit a "submit vote" event
+		        document.querySelector('.channel-create-button').onclick = () => {
+		                const channel = document.querySelector(".channel-input").value
+		                socket.emit('submit channel', channel);
+		        };
+		    });
+
+		    // When a new vote is announced, add to the unordered list
+		    socket.on('channel list', updatedChannels => {
+		    	const channelsTemplate = Handlebars.compile(document.querySelector('#channels-script').innerHTML);
+		    	const content = channelsTemplate({'channels': updatedChannels })
+		        document.querySelector('.channel-list').innerHTML = content;
+		        document.querySelector('.channel-input').value = "";
+		    });
+		});
+
+
+            
+            const nameTemplate = Handlebars.compile(document.querySelector('#name-script').innerHTML);
+
+            const channelsTemplate = Handlebars.compile(document.querySelector('#channels-script').innerHTML);
+
+            document.addEventListener('DOMContentLoaded', () => {
+            	if(localStorage.name){
+            		document.querySelector('.name-submit-container').outerHTML = "";
+            		const content = nameTemplate({'name': localStorage.name});
+            		document.querySelector('#greeting').innerHTML += content;
+            	}
+            	else{
+            		document.querySelector('.name-button').onclick = ()  => {
+                	console.log("clicked")
+                	let name = document.querySelector('.name-input').value;
+                    
+                    localStorage.setItem("name", name);
+                    // Add roll result to DOM.
+                    const content = nameTemplate({'name': name});
+                    console.log(content)
+                    document.querySelector('#greeting').innerHTML += content;
+                    document.querySelector('.name-submit-container').outerHTML = "";
+            		}
+            	}
+            });
+
+             document.addEventListener('DOMContentLoaded', () => {
+             	let channels = {{ channels|safe }}
+             	console.log(channels)
+            	const content = channelsTemplate({'channels': channels })
+            	document.querySelector('.channel-list').innerHTML += content;
+            	
+            	autoGrow(document.querySelector('.message'))
+            });
+ 
+ 			document.addEventListener('DOMContentLoaded', () => {
+ 				let message = document.querySelector('.message')
+             	message.onkeyup = ()  => {
+             		autoGrow(message);
+             	}
+             	message.onkeydown = ()  => {
+             		sendMessage(event);
+             	}
+
+            });
+			
+
+            
+            
+        </script>
+		
+		<div id="greeting">
+		</div>
+		<div class="name-submit-container">
+			<div class="name-submit">
+				<input type="text" class="name-input" placeholder="What Should We Call you?">
+				<button class="name-button">Submit</button>
+			</div>
+		</div>
+		<div class="channel-create-container">
+
+					<div class="channel-create">
+						<input type="text" class="channel-input" placeholder="What channel would you like to make?">
+						<button class="channel-create-button">Create</button>
+					</div>
+				</div>
+		<div class="row">
+			<div class="channel-container col-2">
+				<div class="channel-list-container">
+					<div class="channel-list">
+					</div>
+				</div>
+			</div>
+			<div class="chats-container col-10">
+				<div>Converstations here</div>
+				<textarea rows="1" cols="50" class="message" placeholder="Linskcord Message" onkeyup="autoGrow(this)"></textarea>
+			</div>
+		</div>
+
+		<script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
+		<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
+	</body>
+</html>

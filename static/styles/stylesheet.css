@@ -1,0 +1,26 @@
+textarea {
+	width: 90%;
+	overflow-y: scroll;
+	resize: none;
+	min-height: 28px;
+    max-height: 100px;
+}
+
+.channel{
+	background-color: darkgrey;
+	text-align: left;
+	padding-left: 20%;
+	cursor:pointer
+}
+
+.channel:hover{
+	color: blue;
+}
+
+.channel-container{
+	padding-right: 0px;
+}
+
+.chats-container{
+	background-color: lightgrey;
+}
