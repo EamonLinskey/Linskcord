@@ -19,21 +19,26 @@ def index():
 
 
 @socketio.on("submit channel")
-def channel(channel):
+def submitChannel(channel):
 	print(channel)
 	if channel not in channels:
-		channels[channel] = []
+		channels[str(channel)] = []
 	print(channels)
 	emit("channel list", channels, broadcast=True)
 	
 
 @socketio.on("submit message")
-def channel(arr):
+def submitMessage(arr):
 	if len(arr) == 4:
 		print(channels)
 		print(arr)
 		channels[arr[0]].append(arr[1:])
 		print(channels)
 	emit("message update", channels, broadcast=True)
+
+
+@socketio.on("update messages")
+def updateMessages():
+	emit("message update", channels, broadcast=False)
 	
 	

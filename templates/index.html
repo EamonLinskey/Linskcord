@@ -30,7 +30,7 @@
 		<script id="messages-script" type="text/x-handelbars-template">
 			{% raw -%}
 				{{#each messages}}
-					<div class="row">
+					<div class="row chat">
 						<div class="sender ">{{this.[1]}}</div>
 						<div class="time ">{{this.[2]}}</div>
 					</div>
@@ -41,107 +41,133 @@
 
 		<script>
 
-		function linksClickable(){
-			let channelLinks = document.querySelectorAll('.channel')
- 				Array.from(channelLinks).forEach(link => {
- 					link.addEventListener('click', function(event) {
- 						oldSelection = document.querySelector('#selected-channel');
- 						if (oldSelection){
- 							oldSelection.removeAttribute("id");
- 						}
- 						link.id = "selected-channel";
- 						localStorage.selectedChannel = link.innerHTML;
- 						let channels = {{ channels|safe }}
- 						socket.emit('submit message', [])
- 						updateMesages(channels)
- 					});
- 				});
-		}
-
-		function updateMesages(channels){
-
-			let channel = document.querySelector('#selected-channel').innerHTML
-        	let messages = channels
-        	//console.log("-----------------")
-        	//console.log(channel)
-         	//console.log(messages[channel])
-         	const content = messagesTemplate({'messages': messages[channel]});
-         	//console.log(content)
-         	document.querySelector('.chats').innerHTML = content
-		}
 
 
+			function linksClickable(){
+				let channelLinks = document.querySelectorAll('.channel')
+	 				Array.from(channelLinks).forEach(link => {
+	 					link.addEventListener('click', function(event) {
+	 						oldSelection = document.querySelector('#selected-channel');
+	 						if (oldSelection){
+	 							oldSelection.removeAttribute("id");
+	 						}
+	 						link.id = "selected-channel";
+	 						localStorage.selectedChannel = link.innerHTML;
+	 						let channels = {{ channels|safe }}
+	 						socket.emit('update messages')
+	 						updateMesages(channels)
+	 					});
+	 				});
+			}
 
-		var socket = io.connect(location.protocol + '//' + document.domain + ':' + location.port);
+			function updateMesages(channels){
 
-		document.addEventListener('DOMContentLoaded', () => {
-		    // When connected, configure buttons
-		    socket.on('connect', () => {
-		        // Each button should emit a "submit vote" event
-		        document.querySelector('.channel-create-button').onclick = () => {
-		        		const channel = document.querySelector(".channel-input").value.trim()
-		        		//console.log(channel)
-		        		if(channel != ""){
-		                	socket.emit('submit channel', channel);
-		                	localStorage.selectedChannel = channel
-		                	document.querySelector('.channel-input').value = ""
-		        		}  
-		        };
-		       
-		    });
+				let channel = document.querySelector('#selected-channel').innerHTML
+	        	let messages = channels
+	        	//console.log("-----------------")
+	        	//console.log(channel)
+	         	//console.log(messages[channel])
+	         	const content = messagesTemplate({'messages': messages[channel]});
+	         	//console.log(content)
+	         	document.querySelector('.chats').innerHTML = content
+	         	document.querySelector(".chats").scrollTo(0, document.querySelector(".chats").scrollHeight)
+			}
 
-		    // When a new channel is announced, add to the channel section
-		    socket.on('channel list', updatedChannels => {
-		    	const channelsTemplate = Handlebars.compile(document.querySelector('#channels-script').innerHTML);
-		    	const content = channelsTemplate({'channels': updatedChannels })
-		        document.querySelector('.channel-list').innerHTML = content;
-		        document.querySelector(`#${CSS.escape(localStorage.selectedChannel)}`).id = "selected-channel";
-		        linksClickable()
-		    });
+			function hideModal(modal){
+				console.log(modal)
+				modal.style.visibility = "hidden"
+			}
 
-		     // When a new channel is announced, add to the channel section
-		    socket.on('message update', updatedChannels => {
-				updateMesages(updatedChannels)
-		    });
-
-		    
-		});
+			function showModal(modal){
+				modal.style.visibility = "visible"
+			}
 
 
-		function autoGrow(element) {
-			if (event.keyCode != 13) {
-				element.style.transitionDuration = "0s";
-		    	element.style.height = "5px";
-		    	element.style.height = (element.scrollHeight)+"px";
-		    }
-		}
 
-		function sendMessage(event) {
-		    if (event.keyCode == 13) {
-		    	message = document.querySelector('.message').value;
-		    	username = document.querySelector('#username').classList[0];
-		    	channel = document.querySelector('#selected-channel').innerHTML;
-		    	let today = new Date();
-		    	let date = (today.getMonth()+1)+'-'+today.getDate()+'-'+today.getFullYear();
-		    	let time = today.getHours() + ":" + today.getMinutes() + ":" + today.getSeconds();
-		    	let dateTime = date+' '+time;
-		    	console.log(dateTime)
-		    	console.log(username)
-		    	console.log(channel)
-		    	socket.emit('submit message', [channel, message, username, dateTime])
-		        console.log(message)
-		        document.querySelector('.message').value = "";
-		        resetHeight(document.querySelector('.message'))
-		    }
-		    else if (document.querySelector('.message').value == ""){
-		    	resetHeight(document.querySelector('.message'))
-		    }
-		}
 
-		function resetHeight(element){
-			element.style.transitionDuration = "0.4s";
-			element.style.height = "28px";
-		}
+			var socket = io.connect(location.protocol + '//' + document.domain + ':' + location.port);
+
+			document.addEventListener('DOMContentLoaded', () => {
+			    // When connected, configure buttons
+			    socket.on('connect', () => {
+			        // Each button should emit a "submit vote" event
+			        hideModal(document.querySelector('.channel-submit-container'))
+			        document.querySelector('.channel-create-button').onclick = () => {
+			        		const newChannel = document.querySelector(".channel-input").value.trim()
+			        		//console.log(channel)
+			        		if(newChannel != ""){
+			                	socket.emit('submit channel', newChannel);
+			                	localStorage.selectedChannel = newChannel
+			                	document.querySelector('.channel-input').value = ""
+			                	socket.emit('update messages')
+			                	hideModal(document.querySelector('.channel-submit-container'));
+
+			        		}  
+			        };
+			       
+			    });
+
+			    // When a new channel is announced, add to the channel section
+			    socket.on('channel list', updatedChannels => {
+			    	const channelsTemplate = Handlebars.compile(document.querySelector('#channels-script').innerHTML);
+			    	const content = channelsTemplate({'channels': updatedChannels })
+			        document.querySelector('.channel-list').innerHTML = content;
+			        document.querySelector(`#${CSS.escape(localStorage.selectedChannel)}`).id = "selected-channel";
+			        document.querySelector(".channel-list-container").scrollTo(0, document.querySelector(".channel-list-container").scrollHeight)
+			        linksClickable()
+			    });
+
+			     // When a new channel is announced, add to the channel section
+			    socket.on('message update', updatedChannels => {
+					updateMesages(updatedChannels)
+			    });
+
+			    
+			});
+
+
+			function autoGrow(element) {
+				if (event.keyCode != 13) {
+					element.style.transitionDuration = "0s";
+			    	element.style.height = "5px";
+			    	element.style.height = (element.scrollHeight)+"px";
+			    }
+			}
+
+			function sendMessage(event) {
+
+			    if (event.keyCode == 13) {
+			    	event.preventDefault()
+			    	let message = document.querySelector('.message').value;
+			    	let username = document.querySelector('#username').classList[0];
+			    	let channel = document.querySelector('#selected-channel').innerHTML;
+			    	let today = new Date();
+			    	let date = (today.getMonth()+1)+'-'+today.getDate()+'-'+today.getFullYear();
+			    	let time = today.getHours() + ":" + today.getMinutes() + ":" + today.getSeconds();
+			    	let dateTime = date+' '+time;
+			    	console.log(username)
+			    	if (message != "" && channel != "" && username != undefined && dateTime != undefined)
+			    	{
+			    		//console.log(message.length)
+				    	socket.emit('submit message', [channel, message, username, dateTime])
+				        //console.log(message)
+				        document.querySelector('.message').value = "";
+				        resetHeight(document.querySelector('.message'))
+				    }
+				    else{
+				    	document.querySelector('.message').value = "";
+				    	resetHeight(document.querySelector('.message'))
+				    }
+			    }
+			    else if (document.querySelector('.message').value == ""){
+			    	resetHeight(document.querySelector('.message'))
+			    }
+			}
+
+			function resetHeight(element){
+				element.style.transitionDuration = "0.4s";
+				element.style.height = "28px";
+			}
 
 
 
@@ -153,22 +179,29 @@
             const messagesTemplate = Handlebars.compile(document.querySelector('#messages-script').innerHTML);
 
             document.addEventListener('DOMContentLoaded', () => {
+            	document.querySelector('.channel-modal-button').onclick = ()  => {
+                	showModal(document.querySelector('.channel-submit-container'))
+            	}
             	if(localStorage.name){
-            		document.querySelector('.name-submit-container').outerHTML = "";
+  					hideModal(document.querySelector('.name-submit-container'))
             		const content = nameTemplate({'name': localStorage.name});
             		document.querySelector('#greeting').innerHTML += content;
             	}
             	else{
+            		showModal(document.querySelector('.name-submit-container'))
             		document.querySelector('.name-button').onclick = ()  => {
-                	//console.log("clicked")
-                	let name = document.querySelector('.name-input').value;
-                    
-                    localStorage.setItem("name", name);
-                    // Add roll result to DOM.
-                    const content = nameTemplate({'name': name});
-                    //console.log(content)
-                    document.querySelector('#greeting').innerHTML += content;
-                    document.querySelector('.name-submit-container').outerHTML = "";
+                		//console.log("clicked")
+                		
+	                	if(document.querySelector('.name-input').value != "")
+	                	{
+	                		let name = document.querySelector('.name-input').value;
+		                    localStorage.setItem("name", name);
+		                    const content = nameTemplate({'name': name});
+		                    //console.log(content)
+		                    document.querySelector('#greeting').innerHTML += content;
+		                    document.querySelector('.name-submit-container').outerHTML = "";
+	                	}
+	                
             		}
             	}
             });
@@ -189,7 +222,7 @@
              	}
 
              	//console.log("message")
-             	message.onkeyup = ()  => {
+             	message.onkeydown = ()  => {
              		sendMessage(event);
              	}
 
@@ -219,23 +252,20 @@
             
         </script>
 		
-		<div id="greeting">
-		</div>
-		<div class="name-submit-container">
-			<div class="name-submit">
-				<input type="text" class="name-input" placeholder="What Should We Call you?">
-				<button class="name-button">Submit</button>
+		<div class="greeting-container">
+			<div id="greeting">
 			</div>
 		</div>
-		<div class="channel-create-container">
+		
+		
+		<div class="row chat-row">
+			<div class="channel-container col-2">
+				<div class="channel-create-container">
 
 					<div class="channel-create">
-						<input type="text" class="channel-input" placeholder="What channel would you like to make?" >
-						<button class="channel-create-button">Create</button>
+						<button class="channel-modal-button">New Channel</button>
 					</div>
 				</div>
-		<div class="row">
-			<div class="channel-container col-2">
 				<div class="channel-list-container">
 					<div class="channel-list">
 					</div>
@@ -245,8 +275,40 @@
 				<div class="chats">
 				</div>
 				<div class="messagebar">
-					<textarea rows="1" cols="50" class="message" placeholder="Linskcord Message" ></textarea>
+					<textarea rows="1" cols="50" class="message" placeholder="Linskcord Message"></textarea>
 				<div>
+			</div>
+		</div>
+
+		<div class="name-submit-container modal">
+			<div class="name-submit modal-content">
+				<div class="modal-header">
+			      <div class= "modal-header-text"><h2>Welcome to Linscord!<h2></div>
+			    </div>
+			    <div class="modal-body">
+			    	<div class="input-continer">
+						<input type="text" class="name-input" placeholder="What Should We Call you?">
+					</div>
+					<div class="button-continer">
+						<button class="name-button">Submit</button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="channel-submit-container modal">
+			<div class="channel-submit modal-content">
+				<div class="modal-header">
+			      <div class= "modal-header-text"><h2>Submit a new channel<h2></div>
+			    </div>
+			    <div class="modal-body">
+			    	<div class="channel-input-continer">
+						<input type="text" class="channel-input" maxlength="20" placeholder="Crate New Channel">
+					</div>
+					<div class="button-continer">
+						<button class="channel-create-button">Submit</button>
+					</div>
+				</div>
 			</div>
 		</div>
 
