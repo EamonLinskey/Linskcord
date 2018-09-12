@@ -15,46 +15,142 @@
 
 		<script id="name-script" type="text/x-handelbars-template">
 			{% raw -%}
-				<div> Hello {{ name }} </div>
+				<div id="username" class={{ name }}> Hello {{ name }} </div>
 			{%- endraw %}
 		</script>
 
 		<script id="channels-script" type="text/x-handelbars-template">
 			{% raw -%}
 				{{#each channels}}
-					<div class="channel"> {{@key}}</div>
+					<div class="channel" id="{{@key}}">{{@key}}</div>
+				{{/each}}
+			{%- endraw %}
+		</script>
+
+		<script id="messages-script" type="text/x-handelbars-template">
+			{% raw -%}
+				{{#each messages}}
+					<div class="row">
+						<div class="sender ">{{this.[1]}}</div>
+						<div class="time ">{{this.[2]}}</div>
+					</div>
+					<div class="sent-message">{{this.[0]}}</div>
 				{{/each}}
 			{%- endraw %}
 		</script>
 
 		<script>
 
+		function linksClickable(){
+			let channelLinks = document.querySelectorAll('.channel')
+ 				Array.from(channelLinks).forEach(link => {
+ 					link.addEventListener('click', function(event) {
+ 						oldSelection = document.querySelector('#selected-channel');
+ 						if (oldSelection){
+ 							oldSelection.removeAttribute("id");
+ 						}
+ 						link.id = "selected-channel";
+ 						localStorage.selectedChannel = link.innerHTML;
+ 						let channels = {{ channels|safe }}
+ 						socket.emit('submit message', [])
+ 						updateMesages(channels)
+ 					});
+ 				});
+		}
+
+		function updateMesages(channels){
+
+			let channel = document.querySelector('#selected-channel').innerHTML
+        	let messages = channels
+        	//console.log("-----------------")
+        	//console.log(channel)
+         	//console.log(messages[channel])
+         	const content = messagesTemplate({'messages': messages[channel]});
+         	//console.log(content)
+         	document.querySelector('.chats').innerHTML = content
+		}
+
+
+
+		var socket = io.connect(location.protocol + '//' + document.domain + ':' + location.port);
+
 		document.addEventListener('DOMContentLoaded', () => {
-		    // Connect to websocket
-		    var socket = io.connect(location.protocol + '//' + document.domain + ':' + location.port);
 		    // When connected, configure buttons
 		    socket.on('connect', () => {
 		        // Each button should emit a "submit vote" event
 		        document.querySelector('.channel-create-button').onclick = () => {
-		                const channel = document.querySelector(".channel-input").value
-		                socket.emit('submit channel', channel);
+		        		const channel = document.querySelector(".channel-input").value.trim()
+		        		//console.log(channel)
+		        		if(channel != ""){
+		                	socket.emit('submit channel', channel);
+		                	localStorage.selectedChannel = channel
+		                	document.querySelector('.channel-input').value = ""
+		        		}  
 		        };
+		       
 		    });
 
-		    // When a new vote is announced, add to the unordered list
+		    // When a new channel is announced, add to the channel section
 		    socket.on('channel list', updatedChannels => {
 		    	const channelsTemplate = Handlebars.compile(document.querySelector('#channels-script').innerHTML);
 		    	const content = channelsTemplate({'channels': updatedChannels })
 		        document.querySelector('.channel-list').innerHTML = content;
-		        document.querySelector('.channel-input').value = "";
+		        document.querySelector(`#${CSS.escape(localStorage.selectedChannel)}`).id = "selected-channel";
+		        linksClickable()
 		    });
+
+		     // When a new channel is announced, add to the channel section
+		    socket.on('message update', updatedChannels => {
+				updateMesages(updatedChannels)
+		    });
+
+		    
 		});
+
+
+		function autoGrow(element) {
+			if (event.keyCode != 13) {
+				element.style.transitionDuration = "0s";
+		    	element.style.height = "5px";
+		    	element.style.height = (element.scrollHeight)+"px";
+		    }
+		}
+
+		function sendMessage(event) {
+		    if (event.keyCode == 13) {
+		    	message = document.querySelector('.message').value;
+		    	username = document.querySelector('#username').classList[0];
+		    	channel = document.querySelector('#selected-channel').innerHTML;
+		    	let today = new Date();
+		    	let date = (today.getMonth()+1)+'-'+today.getDate()+'-'+today.getFullYear();
+		    	let time = today.getHours() + ":" + today.getMinutes() + ":" + today.getSeconds();
+		    	let dateTime = date+' '+time;
+		    	console.log(dateTime)
+		    	console.log(username)
+		    	console.log(channel)
+		    	socket.emit('submit message', [channel, message, username, dateTime])
+		        console.log(message)
+		        document.querySelector('.message').value = "";
+		        resetHeight(document.querySelector('.message'))
+		    }
+		    else if (document.querySelector('.message').value == ""){
+		    	resetHeight(document.querySelector('.message'))
+		    }
+		}
+
+		function resetHeight(element){
+			element.style.transitionDuration = "0.4s";
+			element.style.height = "28px";
+		}
+
 
 
             
             const nameTemplate = Handlebars.compile(document.querySelector('#name-script').innerHTML);
 
             const channelsTemplate = Handlebars.compile(document.querySelector('#channels-script').innerHTML);
+
+            const messagesTemplate = Handlebars.compile(document.querySelector('#messages-script').innerHTML);
 
             document.addEventListener('DOMContentLoaded', () => {
             	if(localStorage.name){
@@ -64,13 +160,13 @@
             	}
             	else{
             		document.querySelector('.name-button').onclick = ()  => {
-                	console.log("clicked")
+                	//console.log("clicked")
                 	let name = document.querySelector('.name-input').value;
                     
                     localStorage.setItem("name", name);
                     // Add roll result to DOM.
                     const content = nameTemplate({'name': name});
-                    console.log(content)
+                    //console.log(content)
                     document.querySelector('#greeting').innerHTML += content;
                     document.querySelector('.name-submit-container').outerHTML = "";
             		}
@@ -82,23 +178,44 @@
              	console.log(channels)
             	const content = channelsTemplate({'channels': channels })
             	document.querySelector('.channel-list').innerHTML += content;
-            	
             	autoGrow(document.querySelector('.message'))
             });
  
  			document.addEventListener('DOMContentLoaded', () => {
- 				let message = document.querySelector('.message')
-             	message.onkeyup = ()  => {
+ 				let message = document.querySelector('.message');
+ 				
+             	message.oninput = ()  => {
              		autoGrow(message);
              	}
-             	message.onkeydown = ()  => {
+
+             	//console.log("message")
+             	message.onkeyup = ()  => {
              		sendMessage(event);
              	}
 
             });
-			
 
-            
+            document.addEventListener('DOMContentLoaded', () => {
+            	//Checks local storage for selection else defaults to top channel
+            	let stored = localStorage.selectedChannel;
+            	let channels = {{ channels|safe}}
+            	//console.log(channels[stored])
+            	if (channels[stored] != null){
+            		//CSS.escape used to prevent edgecase errors
+            		localStorage.selectedChannel = document.querySelector(`#${CSS.escape(stored)}`).id
+            		document.querySelector(`#${CSS.escape(stored)}`).id = "selected-channel";
+            	}
+            	else{
+            		selection = document.querySelector('.channel')
+            		localStorage.selectedChannel = selection.id
+            		selection.id = "selected-channel";
+            	}
+
+            	//.onclicks added to each link allowing the slection to be changed
+ 				linksClickable()
+ 				updateMesages(channels)
+            });
+		
             
         </script>
 		
@@ -113,7 +230,7 @@
 		<div class="channel-create-container">
 
 					<div class="channel-create">
-						<input type="text" class="channel-input" placeholder="What channel would you like to make?">
+						<input type="text" class="channel-input" placeholder="What channel would you like to make?" >
 						<button class="channel-create-button">Create</button>
 					</div>
 				</div>
@@ -125,8 +242,11 @@
 				</div>
 			</div>
 			<div class="chats-container col-10">
-				<div>Converstations here</div>
-				<textarea rows="1" cols="50" class="message" placeholder="Linskcord Message" onkeyup="autoGrow(this)"></textarea>
+				<div class="chats">
+				</div>
+				<div class="messagebar">
+					<textarea rows="1" cols="50" class="message" placeholder="Linskcord Message" ></textarea>
+				<div>
 			</div>
 		</div>
 

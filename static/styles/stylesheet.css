@@ -13,7 +13,7 @@ textarea {
 	cursor:pointer
 }
 
-.channel:hover{
+.channel:hover, #selected-channel{
 	color: blue;
 }
 
@@ -21,6 +21,23 @@ textarea {
 	padding-right: 0px;
 }
 
-.chats-container{
+.chats-container, .messagebar{
 	background-color: lightgrey;
+}
+
+.sender {
+	color: grey;
+	font-size: 10pt;
+	margin-right: 1%;
+}
+
+.sent-message {
+	color: black;
+	font-size: 18pt;
+}
+
+.time {
+	color: darkgrey;
+	font-size: 10pt;
+
 }

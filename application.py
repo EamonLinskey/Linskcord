@@ -11,7 +11,7 @@ app = Flask(__name__)
 app.config["SECRET_KEY"] = os.getenv("SECRET_KEY")
 socketio = SocketIO(app)
 
-channels = {"LinskcordAbout":[], "The Big Bad Wolf":[]}
+channels = {"LinscordAbout":[["Hey Welcome to Linscord", "Linscord", '9-11-2018 18:33:4'], ["This is how messages work", "Linscord", '9-11-2018 18:34:2']], "The Big Bad Wolf":[]}
 
 @app.route("/")
 def index():
@@ -25,4 +25,15 @@ def channel(channel):
 		channels[channel] = []
 	print(channels)
 	emit("channel list", channels, broadcast=True)
+	
+
+@socketio.on("submit message")
+def channel(arr):
+	if len(arr) == 4:
+		print(channels)
+		print(arr)
+		channels[arr[0]].append(arr[1:])
+		print(channels)
+	emit("message update", channels, broadcast=True)
+	
 	
