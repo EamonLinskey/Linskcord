@@ -47,7 +47,7 @@ def submitMessage(arr):
 def deleteMessage(messId, channel):
 	for message in channels[str(channel)]:
 		print(message[3])
-		if str(message[3])a == str(messId):
+		if str(message[3])== str(messId):
 			print(message)
 			channels[str(channel)].remove(message)
 	emit("message update", channels, broadcast=False)
