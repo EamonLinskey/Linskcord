@@ -43,44 +43,44 @@
 		</script>
 
 		<script>
+			//Adds event listeners to each link on the channel side bar for chaning channels
+			function linksClickable(channelLinks){
+ 				Array.from(channelLinks).forEach(link => {
+ 					link.addEventListener('click', function(event) {
+ 						//Remove previous selected link and select new channel
+ 						let oldSelection = document.querySelector('#selected-channel');
+ 						if (oldSelection){
+ 							oldSelection.removeAttribute("id");
+ 						}
+ 						link.id = "selected-channel";
+ 						document.querySelector('.channel-title').innerHTML = link.innerHTML;
 
+ 						//Store selected link in local storage for users returning to website
+ 						localStorage.selectedChannel = link.innerHTML;
 
-
-			function linksClickable(){
-				let channelLinks = document.querySelectorAll('.channel')
-	 				Array.from(channelLinks).forEach(link => {
-	 					link.addEventListener('click', function(event) {
-	 						oldSelection = document.querySelector('#selected-channel');
-	 						if (oldSelection){
-	 							oldSelection.removeAttribute("id");
-	 						}
-	 						link.id = "selected-channel";
-	 						localStorage.selectedChannel = link.innerHTML;
-	 						document.querySelector('.channel-title').innerHTML = link.innerHTML;
-	 						let channels = {{ channels|safe }}
-	 						socket.emit('update messages')
-	 						updateMessages(channels)
-	 					});
-	 				});
+ 						//Update the list of channels and update Messages to show blank 
+ 						//message screen for new channel
+ 						let channels = {{ channels|safe }}
+ 						socket.emit('update messages')
+ 						updateMessages(channels)
+ 					});
+ 				});
 			}
 
-			function messageDelete(message, channel){
-				console.log(message.id)
-				console.log(channel)
-
-				socket.emit('delete message', message.id, channel)
-			}
-
+			//Adds x's that appear on mouseover if user is the sender of a message.
+			//Onclick they delete the users message from the database (note that the 
+			//messages remain on other users until their next message update)
 			function addDeletes(){
-				chats = document.querySelectorAll('.chat');
-				console.log(chats.length)
+				let chats = document.querySelectorAll('.chat');
 				for(let i=0; i<chats.length; i++) 
 				{
+					//Check to see if user is the sender
+					//This approach is vunerable to a user manipulating their Local Storage or innerHTML in browser
+					//Should be improved with sessions when a more robust login is added
 					if (chats[i].querySelector('.sender').innerHTML == localStorage.name){
 						chats[i].querySelector('.delete').onclick = () => {
 							let channel = document.querySelector('#selected-channel').innerHTML
-							console.log(channel)
-							messageDelete(chats[i], channel)
+							socket.emit('delete message', chats[i].id, channel)
 						}
 						chats[i].onmouseover = () => {
 							chats[i].querySelector('.delete').style.visibility = "visible"
@@ -92,145 +92,41 @@
 				}
 			}
 
-			function updateMessages(channels){
-
+			//Updates the messages shown on a users individual machine to match the most recent record
+			function updateMessages(messages){
 				let channel = document.querySelector('#selected-channel').innerHTML
-	        	let messages = channels
-	        	//console.log("-----------------")
-	        	//console.log(channel)
-	         	//console.log(messages[channel])
 	         	const content = messagesTemplate({'messages': messages[channel]});
-	         	//console.log(content)
 	         	document.querySelector('.chats').innerHTML = content
+
+	         	//Scrolls to the bottom of message to highlight the incoming message
 	         	document.querySelector(".chats").scrollTo(0, document.querySelector(".chats").scrollHeight)
 	         	addDeletes()
 			}
 
+			//Sends messages to socket with username, channel, and timestamp
 			function sendMessage(){
 				let message = document.querySelector('.message').value;
 		    	let username = localStorage.name;
 		    	let channel = document.querySelector('#selected-channel').innerHTML;
 		    	let today = new Date();
 		    	let date = (today.getMonth()+1)+'-'+today.getDate()+'-'+today.getFullYear();
+
+		    	//adds leading 0 to numbers less than 10
 		    	let minutes = ('0'+ today.getMinutes()).slice(-2)
 		    	let time = today.getHours() + ":" + minutes;
 		    	let dateTime = date+' '+time;
-		    	console.log(username)
+
+		    	//checks for valid input
 		    	if (message != "" && channel != "" && username != undefined && dateTime != undefined)
 		    	{
-		    		//console.log(message.length)
 			    	socket.emit('submit message', [channel, message, username, dateTime])
-			        //console.log(message)
+			    }  
+			        //Reset message bar to empty state
 			        document.querySelector('.message').value = "";
 			        resetHeight(document.querySelector('.message'))
-			    }
-			    else{
-			    	document.querySelector('.message').value = "";
-			    	resetHeight(document.querySelector('.message'))
-			    }
 			}
 
-			function sendFile(){
-				let file = document.querySelector('.file');
-		    	let username = localStorage.name;
-		    	let channel = document.querySelector('#selected-channel').innerHTML;
-		    	let today = new Date();
-		    	let date = (today.getMonth()+1)+'-'+today.getDate()+'-'+today.getFullYear();
-		    	let minutes = ('0'+ today.getMinutes()).slice(-2)
-		    	let time = today.getHours() + ":" + minutes;
-		    	let dateTime = date+' '+time;
-		    	console.log(username)
-		    	if (file != "" && channel != "" && username != undefined && dateTime != undefined)
-		    	{
-		    		//console.log(message.length)
-			    	socket.emit('submit file', file)
-			        //console.log(message)
-			        
-			        resetHeight(document.querySelector('.message'))
-			    }
-			    else{
-			    	
-			    	resetHeight(document.querySelector('.message'))
-			    }
-			}
-
-			function hideModal(modal){
-				console.log(modal)
-				modal.style.visibility = "hidden"
-			}
-
-			function showModal(modal){
-				modal.style.visibility = "visible"
-			}
-
-
-
-
-			var socket = io.connect(location.protocol + '//' + document.domain + ':' + location.port);
-
-			document.addEventListener('DOMContentLoaded', () => {
-				document.querySelector('.channel-create-button').onclick = () => {
-	        		const newChannel = document.querySelector(".channel-input").value.trim()
-	        		//console.log(channel)
-	        		if(newChannel != ""){
-	                	socket.emit('submit channel', newChannel);
-	                	localStorage.selectedChannel = newChannel
-	                	document.querySelector('.channel-input').value = ""
-	                	socket.emit('update messages')
-	                	hideModal(document.querySelector('.channel-submit-container'));
-	                	document.querySelector('.channel-title').innerHTML = newChannel;
-
-	        		}  
-			    };
-
-			    
-
-		        document.querySelector('.channel-close').onclick = () => {
-		        	hideModal(document.querySelector('.channel-submit-container'))
-		        }
-
-		        document.querySelector('.file-close').onclick = () => {
-		        	hideModal(document.querySelector('.file-submit-container'))
-		        }
-
-		        hideModal(document.querySelector('.channel-submit-container'))
-			    // When connected, configure buttons
-			    
-
-			    // When a new channel is announced, add to the channel section
-			    socket.on('channel list', updatedChannels => {
-			    	const channelsTemplate = Handlebars.compile(document.querySelector('#channels-script').innerHTML);
-			    	const content = channelsTemplate({'channels': updatedChannels })
-			        document.querySelector('.channel-list').innerHTML = content;
-			        document.querySelector(`#${CSS.escape(localStorage.selectedChannel)}`).id = "selected-channel";
-			        document.querySelector(".channel-list-container").scrollTo(0, document.querySelector(".channel-list-container").scrollHeight)
-			        linksClickable()
-			    });
-
-			     // When a new channel is announced, add to the channel section
-			    socket.on('message update', updatedChannels => {
-					updateMessages(updatedChannels)
-			    });
-
-			    socket.on('new user', bool => {
-			    	if (bool)
-			    	{
-			    		let name = document.querySelector('.name-input').value;
-	                    localStorage.setItem("name", name);
-	                    const content = nameTemplate({'name': name});
-	                    //console.log(content)
-	                    document.querySelector('#greeting').innerHTML += content;
-	                    document.querySelector('.name-submit-container').outerHTML = "";
-			    	}
-			    	else{
-			    		document.querySelector('.name-taken').innerHTML = "Sorry that name is taken"
-			    	}
-			    });
-
-			    
-			});
-
-
+			//Adjusts the size of the messagebar to be appropriate for the text in it
 			function autoGrow(element) {
 				if (event.keyCode != 13) {
 					element.style.transitionDuration = "0s";
@@ -239,8 +135,8 @@
 			    }
 			}
 
+			//Allows users to send message with enter
 			function sendMessageOnEnter(event) {
-
 			    if (event.keyCode == 13) {
 			    	event.preventDefault()
 			    	sendMessage()
@@ -250,34 +146,39 @@
 			    }
 			}
 
+			//returns messagebar to default height
 			function resetHeight(element){
 				element.style.transitionDuration = "0.4s";
 				element.style.height = "28px";
 			}
 
+			//Initialize Socket
+			var socket = io.connect(location.protocol + '//' + document.domain + ':' + location.port);
 
-
-            
+			//Handlebar templates
             const nameTemplate = Handlebars.compile(document.querySelector('#name-script').innerHTML);
-
             const channelsTemplate = Handlebars.compile(document.querySelector('#channels-script').innerHTML);
-
             const messagesTemplate = Handlebars.compile(document.querySelector('#messages-script').innerHTML);
 
-            document.addEventListener('DOMContentLoaded', () => {
-            	document.querySelector('.channel-modal-button').onclick = ()  => {
-                	showModal(document.querySelector('.channel-submit-container'))
-            	}
+			//Performs many functions after the DOM has finished loading 
+			document.addEventListener('DOMContentLoaded', () => {
+
+				//Load in channels into channel list
+				let channels = {{ channels|safe }}
+            	const content = channelsTemplate({'channels': channels })
+            	document.querySelector('.channel-list').innerHTML += content;
+
+            	//If there is a name present load the users info. Otherwise it initilizes the name modal
             	if(localStorage.name){
-  					hideModal(document.querySelector('.name-submit-container'))
+            		document.querySelector('.name-submit-container').style.visibility = "hidden";
             		const content = nameTemplate({'name': localStorage.name});
             		document.querySelector('#greeting').innerHTML += content;
             	}
             	else{
-            		showModal(document.querySelector('.name-submit-container'))
+            		document.querySelector('.name-submit-container').style.visibility = "visible"
+            		
+            		//Submits user name to server on click
             		document.querySelector('.name-button').onclick = ()  => {
-                		//console.log("clicked")
-                		
 	                	if(document.querySelector('.name-input').value != "")
 	                	{
 	                		document.querySelector('.name-taken').innerHTML = ""
@@ -286,61 +187,106 @@
 	                
             		}
             	}
-            });
 
-             document.addEventListener('DOMContentLoaded', () => {
-             	let channels = {{ channels|safe }}
-             	console.log(channels)
-            	const content = channelsTemplate({'channels': channels })
-            	document.querySelector('.channel-list').innerHTML += content;
-            	autoGrow(document.querySelector('.message'))
-            });
- 
- 			document.addEventListener('DOMContentLoaded', () => {
- 				let message = document.querySelector('.message');
- 				
-             	message.oninput = ()  => {
-             		autoGrow(message);
-             	}
+				//Allows the channel create button to create new channels on click
+				document.querySelector('.channel-create-button').onclick = () => {
+	        		const newChannel = document.querySelector(".channel-input").value.trim()
+	        		
+	        		if(newChannel != ""){
+	        			//update channel on server
+	                	socket.emit('submit channel', newChannel);
 
-             	//console.log("message")
-             	message.onkeydown = ()  => {
-             		sendMessageOnEnter(event);
-             	}
+	                	//change channels locally
+	                	localStorage.selectedChannel = newChannel
+	                	document.querySelector('.channel-title').innerHTML = newChannel;
+	                	socket.emit('update messages')
 
-             	document.querySelector('.send-message-button').onclick = () => {
-             		sendMessage()
-             	}
+	                	//resets view for user
+	                	document.querySelector('.channel-input').value = ""
+	                	document.querySelector('.channel-submit-container').style.visibility = "hidden";
+	        		}  
+			    };
 
-             	
+			    //Adds listeners to message and message button
+            	let message = document.querySelector('.message');
+             	message.oninput = ()  => { autoGrow(message); }
+             	message.onkeydown = ()  => { sendMessageOnEnter(event); }
+             	document.querySelector('.send-message-button').onclick = () => { sendMessage();}
 
-            });
+            	//Set messagebar to default height for empty message
+            	autoGrow(message)
 
-            document.addEventListener('DOMContentLoaded', () => {
-            	//Checks local storage for selection else defaults to top channel
+            	//Checks local storage for channel selection else defaults to top channel
             	let stored = localStorage.selectedChannel;
-            	let channels = {{ channels|safe}}
-            	//console.log(channels[stored])
             	if (channels[stored] != null){
             		//CSS.escape used to prevent edgecase errors
             		localStorage.selectedChannel = document.querySelector(`#${CSS.escape(stored)}`).id
             		document.querySelector(`#${CSS.escape(stored)}`).id = "selected-channel";
             	}
-            	else{
+            	else {
             		selection = document.querySelector('.channel')
             		localStorage.selectedChannel = selection.id
             		selection.id = "selected-channel";
             	}
 
             	//.onclicks added to each link allowing the slection to be changed
- 				linksClickable()
+ 				linksClickable(document.querySelectorAll('.channel'))
  				updateMessages(channels)
  				document.querySelector('.channel-title').innerHTML = document.querySelector('#selected-channel').innerHTML;
-            });
 
+			    //Adds functionality to close button on channel modal
+		        document.querySelector('.channel-close').onclick = () => {
+		        	document.querySelector('.channel-submit-container').style.visibility = "hidden";
+		        }
 
-		
-            
+		        //Defaults channel modual to invisible
+		        document.querySelector('.channel-submit-container').style.visibility = "hidden";
+
+		        //Makes the channel modual visible when button is clicked
+		        document.querySelector('.channel-modal-button').onclick = ()  => {
+                	document.querySelector('.channel-submit-container').style.visibility = "visible";
+            	}
+
+			    //When a new channel is announced, add to the channel section
+			    socket.on('channel list', updatedChannels => {
+			    	//Create new channel html using handlebars
+			    	const channelsTemplate = Handlebars.compile(document.querySelector('#channels-script').innerHTML);
+			    	const content = channelsTemplate({'channels': updatedChannels })
+			        document.querySelector('.channel-list').innerHTML = content;
+
+			        //updates selected channel based on local Storage
+			        document.querySelector(`#${CSS.escape(localStorage.selectedChannel)}`).id = "selected-channel";
+
+			        //scrolls to bottom upon to the new channel in the channel list
+			        //(there is currently a bug with numbers being added to the top of list instead of the 
+			        //bottom due to python dict to js object conversion)
+			        document.querySelector(".channel-list-container").scrollTo(0, document.querySelector(".channel-list-container").scrollHeight)
+
+			        //Adds on clicks to each link
+			        linksClickable(document.querySelectorAll('.channel'))
+			    });
+
+			     //When a new channel is announced, add to the channel section
+			    socket.on('message update', updatedChannels => {
+					updateMessages(updatedChannels)
+			    });
+
+			    //Sets user's name if its available, else it alerts the user
+			    socket.on('new user', bool => {
+			    	if (bool)
+			    	{
+			    		let name = document.querySelector('.name-input').value;
+	                    localStorage.setItem("name", name);
+	                    const content = nameTemplate({'name': name});
+	                    document.querySelector('#greeting').innerHTML += content;
+	                    document.querySelector('.name-submit-container').outerHTML = "";
+			    	}
+			    	else{
+			    		document.querySelector('.name-taken').innerHTML = "Sorry that name is taken"
+			    	}
+			    });   
+			});
+  
         </script>
         <div class="chat-head">
         			<div class="site-title">
@@ -369,7 +315,7 @@
 				</div>
 				<div class="messagebar">
 					<textarea rows="1" cols="50" class="message" placeholder="Linskcord Message"></textarea>
-					<button type="button" class="send-message-button"><img id="send-image-picture" src="../static/images/send.png" alt="Send"></button>
+					<button type="button" class="send-message-button"><img id="send-message-picture" src="../static/images/send.png" alt="Send"></button>
 					
 				<div>
 			</div>
