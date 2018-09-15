@@ -8,14 +8,14 @@
 	</head>
 	<body>
 		<script src="../static/scripts/handlebars-v4.0.12.js"></script>
-		<script src="../static/scripts/messagebox.js"></script>
+		
 		<script src="https://cdn.socket.io/socket.io-1.0.0.js"></script>
 		<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
 		<link rel="stylesheet" type="text/css" href="../static/styles/stylesheet.css">
 
 		<script id="name-script" type="text/x-handelbars-template">
 			{% raw -%}
-				<div id="username" class={{ name }}> Hello {{ name }} </div>
+				<div id="username" class={{ name }}> Hi, {{ name }}! </div>
 			{%- endraw %}
 		</script>
 
@@ -30,11 +30,14 @@
 		<script id="messages-script" type="text/x-handelbars-template">
 			{% raw -%}
 				{{#each messages}}
-					<div class="row chat">
-						<div class="sender ">{{this.[1]}}</div>
-						<div class="time ">{{this.[2]}}</div>
+					<div id="{{this.[3]}}" class="chat">
+						<div class="row message-info">
+							<div class="sender">{{this.[1]}}</div>
+							<div class="time"> {{this.[2]}}</div>
+							<span class="delete">&times;</span>
+						</div>
+						<div class="sent-message">{{this.[0]}}</div>
 					</div>
-					<div class="sent-message">{{this.[0]}}</div>
 				{{/each}}
 			{%- endraw %}
 		</script>
@@ -53,14 +56,43 @@
 	 						}
 	 						link.id = "selected-channel";
 	 						localStorage.selectedChannel = link.innerHTML;
+	 						document.querySelector('.channel-title').innerHTML = link.innerHTML;
 	 						let channels = {{ channels|safe }}
 	 						socket.emit('update messages')
-	 						updateMesages(channels)
+	 						updateMessages(channels)
 	 					});
 	 				});
 			}
 
-			function updateMesages(channels){
+			function messageDelete(message, channel){
+				console.log(message.id)
+				console.log(channel)
+
+				socket.emit('delete message', message.id, channel)
+			}
+
+			function addDeletes(){
+				chats = document.querySelectorAll('.chat');
+				console.log(chats.length)
+				for(let i=0; i<chats.length; i++) 
+				{
+					if (chats[i].querySelector('.sender').innerHTML == localStorage.name){
+						chats[i].querySelector('.delete').onclick = () => {
+							let channel = document.querySelector('#selected-channel').innerHTML
+							console.log(channel)
+							messageDelete(chats[i], channel)
+						}
+						chats[i].onmouseover = () => {
+							chats[i].querySelector('.delete').style.visibility = "visible"
+						}
+						chats[i].onmouseout = () => {
+							chats[i].querySelector('.delete').style.visibility = "hidden"
+						}
+					}
+				}
+			}
+
+			function updateMessages(channels){
 
 				let channel = document.querySelector('#selected-channel').innerHTML
 	        	let messages = channels
@@ -71,6 +103,55 @@
 	         	//console.log(content)
 	         	document.querySelector('.chats').innerHTML = content
 	         	document.querySelector(".chats").scrollTo(0, document.querySelector(".chats").scrollHeight)
+	         	addDeletes()
+			}
+
+			function sendMessage(){
+				let message = document.querySelector('.message').value;
+		    	let username = localStorage.name;
+		    	let channel = document.querySelector('#selected-channel').innerHTML;
+		    	let today = new Date();
+		    	let date = (today.getMonth()+1)+'-'+today.getDate()+'-'+today.getFullYear();
+		    	let minutes = ('0'+ today.getMinutes()).slice(-2)
+		    	let time = today.getHours() + ":" + minutes;
+		    	let dateTime = date+' '+time;
+		    	console.log(username)
+		    	if (message != "" && channel != "" && username != undefined && dateTime != undefined)
+		    	{
+		    		//console.log(message.length)
+			    	socket.emit('submit message', [channel, message, username, dateTime])
+			        //console.log(message)
+			        document.querySelector('.message').value = "";
+			        resetHeight(document.querySelector('.message'))
+			    }
+			    else{
+			    	document.querySelector('.message').value = "";
+			    	resetHeight(document.querySelector('.message'))
+			    }
+			}
+
+			function sendFile(){
+				let file = document.querySelector('.file');
+		    	let username = localStorage.name;
+		    	let channel = document.querySelector('#selected-channel').innerHTML;
+		    	let today = new Date();
+		    	let date = (today.getMonth()+1)+'-'+today.getDate()+'-'+today.getFullYear();
+		    	let minutes = ('0'+ today.getMinutes()).slice(-2)
+		    	let time = today.getHours() + ":" + minutes;
+		    	let dateTime = date+' '+time;
+		    	console.log(username)
+		    	if (file != "" && channel != "" && username != undefined && dateTime != undefined)
+		    	{
+		    		//console.log(message.length)
+			    	socket.emit('submit file', file)
+			        //console.log(message)
+			        
+			        resetHeight(document.querySelector('.message'))
+			    }
+			    else{
+			    	
+			    	resetHeight(document.querySelector('.message'))
+			    }
 			}
 
 			function hideModal(modal){
@@ -88,24 +169,33 @@
 			var socket = io.connect(location.protocol + '//' + document.domain + ':' + location.port);
 
 			document.addEventListener('DOMContentLoaded', () => {
-			    // When connected, configure buttons
-			    socket.on('connect', () => {
-			        // Each button should emit a "submit vote" event
-			        hideModal(document.querySelector('.channel-submit-container'))
-			        document.querySelector('.channel-create-button').onclick = () => {
-			        		const newChannel = document.querySelector(".channel-input").value.trim()
-			        		//console.log(channel)
-			        		if(newChannel != ""){
-			                	socket.emit('submit channel', newChannel);
-			                	localStorage.selectedChannel = newChannel
-			                	document.querySelector('.channel-input').value = ""
-			                	socket.emit('update messages')
-			                	hideModal(document.querySelector('.channel-submit-container'));
+				document.querySelector('.channel-create-button').onclick = () => {
+	        		const newChannel = document.querySelector(".channel-input").value.trim()
+	        		//console.log(channel)
+	        		if(newChannel != ""){
+	                	socket.emit('submit channel', newChannel);
+	                	localStorage.selectedChannel = newChannel
+	                	document.querySelector('.channel-input').value = ""
+	                	socket.emit('update messages')
+	                	hideModal(document.querySelector('.channel-submit-container'));
+	                	document.querySelector('.channel-title').innerHTML = newChannel;
 
-			        		}  
-			        };
-			       
-			    });
+	        		}  
+			    };
+
+			    
+
+		        document.querySelector('.channel-close').onclick = () => {
+		        	hideModal(document.querySelector('.channel-submit-container'))
+		        }
+
+		        document.querySelector('.file-close').onclick = () => {
+		        	hideModal(document.querySelector('.file-submit-container'))
+		        }
+
+		        hideModal(document.querySelector('.channel-submit-container'))
+			    // When connected, configure buttons
+			    
 
 			    // When a new channel is announced, add to the channel section
 			    socket.on('channel list', updatedChannels => {
@@ -119,7 +209,22 @@
 
 			     // When a new channel is announced, add to the channel section
 			    socket.on('message update', updatedChannels => {
-					updateMesages(updatedChannels)
+					updateMessages(updatedChannels)
+			    });
+
+			    socket.on('new user', bool => {
+			    	if (bool)
+			    	{
+			    		let name = document.querySelector('.name-input').value;
+	                    localStorage.setItem("name", name);
+	                    const content = nameTemplate({'name': name});
+	                    //console.log(content)
+	                    document.querySelector('#greeting').innerHTML += content;
+	                    document.querySelector('.name-submit-container').outerHTML = "";
+			    	}
+			    	else{
+			    		document.querySelector('.name-taken').innerHTML = "Sorry that name is taken"
+			    	}
 			    });
 
 			    
@@ -134,30 +239,11 @@
 			    }
 			}
 
-			function sendMessage(event) {
+			function sendMessageOnEnter(event) {
 
 			    if (event.keyCode == 13) {
 			    	event.preventDefault()
-			    	let message = document.querySelector('.message').value;
-			    	let username = document.querySelector('#username').classList[0];
-			    	let channel = document.querySelector('#selected-channel').innerHTML;
-			    	let today = new Date();
-			    	let date = (today.getMonth()+1)+'-'+today.getDate()+'-'+today.getFullYear();
-			    	let time = today.getHours() + ":" + today.getMinutes() + ":" + today.getSeconds();
-			    	let dateTime = date+' '+time;
-			    	console.log(username)
-			    	if (message != "" && channel != "" && username != undefined && dateTime != undefined)
-			    	{
-			    		//console.log(message.length)
-				    	socket.emit('submit message', [channel, message, username, dateTime])
-				        //console.log(message)
-				        document.querySelector('.message').value = "";
-				        resetHeight(document.querySelector('.message'))
-				    }
-				    else{
-				    	document.querySelector('.message').value = "";
-				    	resetHeight(document.querySelector('.message'))
-				    }
+			    	sendMessage()
 			    }
 			    else if (document.querySelector('.message').value == ""){
 			    	resetHeight(document.querySelector('.message'))
@@ -194,12 +280,8 @@
                 		
 	                	if(document.querySelector('.name-input').value != "")
 	                	{
-	                		let name = document.querySelector('.name-input').value;
-		                    localStorage.setItem("name", name);
-		                    const content = nameTemplate({'name': name});
-		                    //console.log(content)
-		                    document.querySelector('#greeting').innerHTML += content;
-		                    document.querySelector('.name-submit-container').outerHTML = "";
+	                		document.querySelector('.name-taken').innerHTML = ""
+	                		socket.emit("submit user", document.querySelector('.name-input').value)
 	                	}
 	                
             		}
@@ -223,8 +305,14 @@
 
              	//console.log("message")
              	message.onkeydown = ()  => {
-             		sendMessage(event);
+             		sendMessageOnEnter(event);
              	}
+
+             	document.querySelector('.send-message-button').onclick = () => {
+             		sendMessage()
+             	}
+
+             	
 
             });
 
@@ -246,36 +334,43 @@
 
             	//.onclicks added to each link allowing the slection to be changed
  				linksClickable()
- 				updateMesages(channels)
+ 				updateMessages(channels)
+ 				document.querySelector('.channel-title').innerHTML = document.querySelector('#selected-channel').innerHTML;
             });
+
+
 		
             
         </script>
-		
-		<div class="greeting-container">
-			<div id="greeting">
-			</div>
+        <div class="chat-head">
+        			<div class="site-title">
+        				Linscord
+					</div>
+					<div class="channel-title">
+					</div>
 		</div>
-		
-		
 		<div class="row chat-row">
 			<div class="channel-container col-2">
-				<div class="channel-create-container">
-
-					<div class="channel-create">
-						<button class="channel-modal-button">New Channel</button>
-					</div>
-				</div>
 				<div class="channel-list-container">
+					<div class="greeting-container">
+						<div id="greeting">
+						</div>
+					</div>
+					<div class="channel-create">
+						<button type="button" class="channel-modal-button btn btn-light"">New Channel</button>
+					</div>
 					<div class="channel-list">
 					</div>
 				</div>
 			</div>
 			<div class="chats-container col-10">
+				
 				<div class="chats">
 				</div>
 				<div class="messagebar">
 					<textarea rows="1" cols="50" class="message" placeholder="Linskcord Message"></textarea>
+					<button type="button" class="send-message-button"><img id="send-image-picture" src="../static/images/send.png" alt="Send"></button>
+					
 				<div>
 			</div>
 		</div>
@@ -283,14 +378,19 @@
 		<div class="name-submit-container modal">
 			<div class="name-submit modal-content">
 				<div class="modal-header">
-			      <div class= "modal-header-text"><h2>Welcome to Linscord!<h2></div>
+			    	<div class= "modal-header-text">
+			    		<h2>Welcome to Linscord!<h2>
+			    	</div>
 			    </div>
 			    <div class="modal-body">
-			    	<div class="input-continer">
-						<input type="text" class="name-input" placeholder="What Should We Call you?">
+			   		<div class="input-continer">
+						<input type="text" class="name-input" placeholder="What Should We Call you?" maxlength="10">
+					</div>
+					<div class="name-taken">
+					
 					</div>
 					<div class="button-continer">
-						<button class="name-button">Submit</button>
+						<button type="button" class="name-button btn btn-light">Submit</button>
 					</div>
 				</div>
 			</div>
@@ -298,22 +398,30 @@
 
 		<div class="channel-submit-container modal">
 			<div class="channel-submit modal-content">
-				<div class="modal-header">
-			      <div class= "modal-header-text"><h2>Submit a new channel<h2></div>
+				<div class="outer-modal">
+					<span class="close channel-close">&times;</span>
+					<div class="modal-header">
+			      		<div class= "modal-header-text">
+			      			<h2>Submit a new channel<h2>
+			      		</div>
+			    	</div>
 			    </div>
 			    <div class="modal-body">
 			    	<div class="channel-input-continer">
 						<input type="text" class="channel-input" maxlength="20" placeholder="Crate New Channel">
 					</div>
 					<div class="button-continer">
-						<button class="channel-create-button">Submit</button>
+						<button type="button" class="channel-create-button btn btn-light">Submit</button>
 					</div>
 				</div>
 			</div>
 		</div>
 
+		
+
 		<script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
 		<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
 		<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/trianglify/1.1.0/trianglify.min.js"></script>
 	</body>
 </html>
